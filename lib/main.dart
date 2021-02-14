@@ -62,6 +62,8 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _aman = false;
   bool _waspada = false;
   bool _bahaya = false;
+  bool _connecting = false;
+  bool _not_connected = false;
 
   Future<int> connect() async {
   /// A websocket URL must start with ws:// or wss:// or Dart will throw an exception, consult your websocket MQTT broker
@@ -117,6 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
   /// never send malformed messages.
   try {
     await client.connect();
+    _connecting = true;
   } on NoConnectionException catch (e) {
     // Raised by the client when connection fails.
     print('EXAMPLE::client exception - $e');
@@ -130,10 +133,14 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Check we are connected
   if (client.connectionStatus.state == MqttConnectionState.connected) {
     print('EXAMPLE::Mosquitto client connected');
+    _connecting = false;
+    _not_connected = false;
   } else {
     /// Use status here rather than state if you also want the broker return code.
     print(
         'EXAMPLE::ERROR Mosquitto client connection failed - disconnecting, status is ${client.connectionStatus}');
+    _connecting = false;
+    _not_connected = true;
     client.disconnect();
     exit(-1);
   }
@@ -185,17 +192,20 @@ class _MyHomePageState extends State<MyHomePage> {
   /// Lets publish to our topic
   /// Use the payload builder rather than a raw buffer
   /// Our known topic to publish to
-  const pubTopic = 'polines/ik3a/kel04/suhu';
-  // final builder = MqttClientPayloadBuilder();
-  // builder.addString('45');
+  const suhuTopic = 'polines/ik3a/kel04/suhu';
+  const statusTopic = 'polines/ik3a/kel04/status';
+  final suhuBuilder = MqttClientPayloadBuilder();
+  final statusBuilder = MqttClientPayloadBuilder();
+  suhuBuilder.addString('20');
+  suhuBuilder.addString('Aman');
 
   /// Subscribe to it
   print('EXAMPLE::Subscribing to the polines/ik3a/kel04/suhu topic');
-  client.subscribe(pubTopic, MqttQos.exactlyOnce);
+  client.subscribe(suhuTopic, MqttQos.exactlyOnce);
 
   /// Publish it
   // print('EXAMPLE::Publishing our topic');
-  // client.publishMessage(pubTopic, MqttQos.exactlyOnce, builder.payload);
+  // client.publishMessage(suhuTopic, MqttQos.exactlyOnce, suhuBuilder.payload);
 
   /// Ok, we will now sleep a while, in this gap you will see ping request/response
   /// messages being exchanged by the keep alive mechanism.
@@ -306,6 +316,48 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               )
             ),
+            Visibility(visible: _connecting,child: 
+              ButtonTheme(
+                  height: 50,
+                  child: 
+                  FlatButton.icon(
+                    onPressed: null,
+                    icon: Icon(
+                      Icons.perm_scan_wifi,
+                      color: Colors.grey,
+                      size: 50
+                    ),
+                    label: Text(
+                      "Menghubungkan...",
+                      style: new TextStyle(
+                        fontSize: 20.0,
+                        color: Colors.grey,
+                      ),
+                    )
+                  )
+              )
+            ),
+            Visibility(visible: _not_connected,child: 
+              ButtonTheme(
+                  height: 50,
+                  child: 
+                  FlatButton.icon(
+                    onPressed: null,
+                    icon: Icon(
+                      Icons.signal_wifi_off,
+                      color: Colors.redAccent,
+                      size: 50
+                    ),
+                    label: Text(
+                      "Perangkat Tidak Tersambung",
+                      style: new TextStyle(
+                        fontSize: 20.0,
+                        color: Colors.red,
+                      ),
+                    )
+                  )
+              )
+            ),
             Visibility(visible: _aman,child: 
               ButtonTheme(
                   height: 50,
@@ -382,6 +434,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   _aman = false;
                   _waspada = false;
                   _bahaya = false;
+                  _connecting = false;
+                  _not_connected = false;
                   suhu = pt;
                   var dSuhu = double.parse(pt);
                   if (dSuhu<=25){
